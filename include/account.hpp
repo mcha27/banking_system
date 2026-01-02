@@ -2,6 +2,7 @@
 #define ACCOUNT_HPP
 
 #include <string>
+#include <sqlite3.h>
 
 class Account {
 private:
