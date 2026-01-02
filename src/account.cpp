@@ -11,11 +11,11 @@ void Account::check_balance() const {
 }
 
 void Account::deposit(double amount) {
-    balance += amount;
+    balance += amount; // have to write to the bank.db
 }
 
 void Account::withdraw(double amount) {
-    balance -= amount;
+    balance -= amount; // have to write to the bank.db
 }
 
 void Account::get_account_info() const {
