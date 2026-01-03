@@ -19,7 +19,8 @@ void Bank::create_table(){
         "ACCOUNT_NUMBER INTEGER NOT NULL UNIQUE, "
         "BALANCE REAL NOT NULL, "
         "CUSTOMER_NAME TEXT NOT NULL UNIQUE, "
-        "ACCOUNT_TYPE TEXT NOT NULL"
+        "ACCOUNT_TYPE TEXT NOT NULL, "
+        "CREATED_BY TEXT NOT NULL"
         ");";
 
     char* errMsg = nullptr;
@@ -31,10 +32,10 @@ void Bank::create_table(){
     }
 }
 
-void Bank::create_acc_db(int acc_num, double s_bal, string cust_name, string acc_type){
+void Bank::create_acc_db(int acc_num, double s_bal, const string& acc_name, const string& acc_type, const string& created_by){
     sqlite3_stmt* stmt;
 
-    const char* insert = "INSERT INTO ACC_INFO (ACCOUNT_NUMBER, BALANCE, CUSTOMER_NAME, ACCOUNT_TYPE) VALUES (?, ?, ?, ?);";
+    const char* insert = "INSERT INTO ACC_INFO (ACCOUNT_NUMBER, BALANCE, CUSTOMER_NAME, ACCOUNT_TYPE, CREATED_BY) VALUES (?, ?, ?, ?, ?);";
 
     int rc = sqlite3_prepare_v2(db, insert, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -44,27 +45,29 @@ void Bank::create_acc_db(int acc_num, double s_bal, string cust_name, string acc
 
     sqlite3_bind_int(stmt, 1, acc_num);
     sqlite3_bind_double(stmt, 2, s_bal);
-    sqlite3_bind_text(stmt, 3, cust_name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, acc_name.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 4, acc_type.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 5, created_by.c_str(), -1, SQLITE_TRANSIENT);
     rc = sqlite3_step(stmt);
 
     sqlite3_finalize(stmt);
 }
 
-void Bank::display_acc_info(string cust_name){
+void Bank::display_acc_info(const string& acc_name, const string& created_by){
     sqlite3_stmt* stmt = nullptr;
     int rc;
 
     const char* sql =
         "SELECT ACCOUNT_NUMBER, BALANCE, ACCOUNT_TYPE "
-        "FROM ACC_INFO WHERE CUSTOMER_NAME = ?;";
+        "FROM ACC_INFO WHERE CUSTOMER_NAME = ? AND CREATED_BY = ?;";
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         cerr << "Prepare failed: " << sqlite3_errmsg(db) << endl;
     }
 
-    rc = sqlite3_bind_text(stmt, 1, cust_name.c_str(), -1, SQLITE_TRANSIENT);
+    rc = sqlite3_bind_text(stmt, 1, acc_name.c_str(), -1, SQLITE_TRANSIENT);
+    rc = sqlite3_bind_text(stmt, 2, created_by.c_str(), -1, SQLITE_TRANSIENT);
     if (rc != SQLITE_OK) {
         cerr << "Bind failed: " << sqlite3_errmsg(db) << endl;
         sqlite3_finalize(stmt);
@@ -77,9 +80,10 @@ void Bank::display_acc_info(string cust_name){
         const unsigned char* text = sqlite3_column_text(stmt, 2);
         string acc_type = text ? reinterpret_cast<const char*>(text) : "";
         cout << "====================================" << endl;
-        cout << "ACCOUNT NUMBER = " << acc_num << endl;
-        cout << "BALANCE = " << balance << endl;
-        cout << "ACCOUNT TYPE = " << acc_type << endl;
+        cout << "ACCOUNT NUMBER:  " << acc_num << endl;
+        cout << "BALANCE: " << balance << endl;
+        cout << "ACCOUNT TYPE: " << acc_type << endl;
+        cout << "CREATED BY: " << created_by << endl;
         cout << "====================================" << endl;
     }
 
@@ -89,7 +93,7 @@ void Bank::display_acc_info(string cust_name){
     sqlite3_finalize(stmt);
 }
 
-Account Bank::create_account(const string acc_type, const string cust_name){
+Account Bank::create_account(const string& account_type, const string& account_name, const string& created_by){
     srand(static_cast<unsigned int>(time(NULL)));
     long long min_val = 100000000LL;
     long long max_val = 999999999LL;
@@ -98,17 +102,17 @@ Account Bank::create_account(const string acc_type, const string cust_name){
 
     double starting_balance = 0.0;
 
-    if (acc_type == "savings") {
-        create_acc_db(account_number, starting_balance, cust_name, acc_type);
-        return Account(account_number, starting_balance, cust_name, acc_type);
+    if (account_type == "savings") {
+        create_acc_db(account_number, starting_balance, account_name, account_type, created_by);
+        return Account(account_number, starting_balance, account_name, account_type, created_by);
     }
     else {
-        create_acc_db(account_number, starting_balance, cust_name, acc_type);
-        return Account(account_number, starting_balance, cust_name, acc_type);
+        create_acc_db(account_number, starting_balance, account_name, account_type, created_by);
+        return Account(account_number, starting_balance, account_name, account_type, created_by);
     }
 }
 
-void Bank::deposit(double amount, const string& cust_name) {
+void Bank::deposit(double amount, const string& acc_name) {
     sqlite3_stmt* stmt = nullptr;
 
     const char* sql =
@@ -123,19 +127,19 @@ void Bank::deposit(double amount, const string& cust_name) {
     }
 
     sqlite3_bind_double(stmt, 1, amount);
-    sqlite3_bind_text(stmt, 2, cust_name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, acc_name.c_str(), -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_DONE) {
         cerr << "Update failed: " << sqlite3_errmsg(db) << endl;
     } else if (sqlite3_changes(db) == 0) {
-        cerr << "No account found for customer: " << cust_name << endl;
+        cerr << "No account found for customer: " << acc_name << endl;
     }
     sqlite3_finalize(stmt);
 }
 
-void Bank::withdraw(double amount, const string& cust_name) {
+void Bank::withdraw(double amount, const string& acc_name) {
     sqlite3_stmt* stmt = nullptr;
 
     const char* sql =
@@ -150,14 +154,14 @@ void Bank::withdraw(double amount, const string& cust_name) {
     }
 
     sqlite3_bind_double(stmt, 1, amount);
-    sqlite3_bind_text(stmt, 2, cust_name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, acc_name.c_str(), -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_DONE) {
         cerr << "Update failed: " << sqlite3_errmsg(db) << endl;
     } else if (sqlite3_changes(db) == 0) {
-        cerr << "No account found for customer: " << cust_name << endl;
+        cerr << "No account found for customer: " << acc_name << endl;
     }
     sqlite3_finalize(stmt);
 }

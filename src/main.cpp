@@ -6,14 +6,16 @@
 #include <iostream>
 #include <sqlite3.h>
 #include <string>
+#include <thread>
+#include <chrono>
 using namespace std;
 
-bool auth(){
+pair<bool, string> auth(){
     sqlite3* db;
-    cout << "===============================" << endl;
+    cout << "===============" << endl;
     cout << "1. Login" << endl;
     cout << "2. Register" << endl;
-    cout << "===============================" << endl;
+    cout << "===============" << endl;
     int option;
     cin >> option;
 
@@ -41,7 +43,7 @@ bool auth(){
             bool auth = datab->login_user(username, hashed);
             if (auth == true){
                 RUN = false;
-                return true;
+                return {auth, username};
             }
             else {
                 RUN = true;
@@ -64,12 +66,13 @@ bool auth(){
 
     sqlite3_close(db);
 
-    return false;
+    return {false, ""};
 }
 
 int main(){
-    bool authenticated = auth();
+    auto [authenticated, username] = auth();
     bool RUN = true;
+    this_thread::sleep_for(chrono::seconds(2));
     if (authenticated == true){
         while (RUN){
             sqlite3* db;
@@ -80,58 +83,64 @@ int main(){
             }
 
             int option;
-            cout << "===============================" << endl;
+            cout << "===================================" << endl;
             cout << "1. View Account Information" << endl;
             cout << "2. Create an Account" << endl;
             cout << "3. Deposit funds into an Account" << endl;
             cout << "4. Withdraw funds from an Account" << endl;
-            cout << "===============================" << endl;
+            cout << "===================================" << endl;
             cin >> option;
 
             Bank* bank = new Bank(db);
             bank->create_table();
             if (option == 1){
-                string cust_name;
+                string account_name;
                 cout << "Enter account name: ";
-                cin >> cust_name;
-                bank->display_acc_info(cust_name);
+                cin >> account_name;
+                this_thread::sleep_for(chrono::seconds(2));
+                bank->display_acc_info(account_name, username);
+                this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 2){
-                string cust_name;
-                string acc_type;
+                string account_name;
+                string account_type;
 
                 cout << "Enter name for the account: ";
-                cin >> cust_name;
+                cin >> account_name;
 
                 cout << "Savings or Checking? ";
-                cin >> acc_type;
-
-                Account new_acc = bank->create_account(acc_type, cust_name);
-                cout << "USER HAS BEEN SUCCESSFULLY CREATED." << endl;
+                cin >> account_type;
+                this_thread::sleep_for(chrono::seconds(2));
+                Account new_acc = bank->create_account(account_type, account_name, username);
+                cout << "ACCOUNT HAS BEEN SUCCESSFULLY CREATED." << endl;
+                this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 3){ 
-                string cust_name;
+                string account_name;
                 double amount;
                 cout << "Enter name for the account: " << endl;
-                cin >> cust_name;
+                cin >> account_name;
                 cout << "How much would you like to deposit?" << endl;
                 cin >> amount;
-                bank->deposit(amount, cust_name);
+                this_thread::sleep_for(chrono::seconds(2));
+                bank->deposit(amount, account_name);
                 cout << "Deposit is successful." << endl;
+                this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 4){
-                string cust_name;
+                string account_name;
                 double amount;
                 cout << "Enter name for the account: " << endl;
-                cin >> cust_name;
+                cin >> account_name;
                 cout << "How much would you like to deposit?" << endl;
                 cin >> amount;
-                bank->withdraw(amount, cust_name);
+                this_thread::sleep_for(chrono::seconds(2));
+                bank->withdraw(amount, account_name);
                 cout << "Withdraw is successful." << endl;
+                this_thread::sleep_for(chrono::seconds(2));
             }
         }
-
     }
-    
+
     return 0;
 }
