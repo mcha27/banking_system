@@ -68,39 +68,51 @@ bool auth(){
 
 int main(){
     bool authenticated = auth();
-    
+    bool RUN = true;
     if (authenticated == true){
-        sqlite3* db;
-        int rc = sqlite3_open("data/bank.db", &db);
-        if (rc != SQLITE_OK) {
-            cerr << "Cannot open database: " << sqlite3_errmsg(db) << endl;
-            sqlite3_close(db);
+        while (RUN){
+            sqlite3* db;
+            int rc = sqlite3_open("data/bank.db", &db);
+            if (rc != SQLITE_OK) {
+                cerr << "Cannot open database: " << sqlite3_errmsg(db) << endl;
+                sqlite3_close(db);
+            }
+
+            int option;
+            cout << "1. View Account Information" << endl;
+            cout << "2. Create an Account" << endl;
+            cout << "3. Deposit funds into an Account" << endl;
+            cin >> option;
+
+            Bank* bank = new Bank(db);
+            bank->create_table();
+            if (option == 1){
+                string cust_name;
+                cout << "Enter account name: ";
+                cin >> cust_name;
+                bank->display_acc_info(cust_name);
+            }
+            else if (option == 2){
+                string cust_name;
+                string acc_type;
+
+                cout << "Enter name for the account: ";
+                cin >> cust_name;
+
+                cout << "Savings or Checking? ";
+                cin >> acc_type;
+
+                Account new_acc = bank->create_account(acc_type, cust_name);
+                cout << "USER HAS BEEN SUCCESSFULLY CREATED." << endl;
+            }
+            else if (option == 3){ //deposit money into an account
+                string cust_name;
+
+                cout << "Enter name for the account: ";
+                cin >> cust_name;
+            }
         }
 
-        int option;
-        cout << "1. View Account Information" << endl;
-        cout << "2. Create an Account" << endl;
-        cin >> option;
-
-        Bank* bank = new Bank(db);
-        bank->create_table();
-        if (option == 2){
-            string cust_name;
-            string acc_type;
-
-            cout << "Enter name for the account: ";
-            cin >> cust_name;
-
-            cout << "Savings or Checking? ";
-            cin >> acc_type;
-
-            Account new_acc = bank->create_account(acc_type, cust_name);
-            new_acc.get_account_info();
-            new_acc.check_balance();
-
-            new_acc.deposit(199999);
-            new_acc.check_balance();
-        }
     }
     
     return 0;

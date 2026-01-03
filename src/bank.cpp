@@ -2,22 +2,23 @@
 #include "../include/account.hpp"
 
 #include <iostream>
-#include <variant>
+#include <vector>
 #include <string>
 #include <random>
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
 using namespace std;
 
 Bank::Bank(sqlite3* d) 
-    : db(d) {}
+    : db(d), list_of_accs{} {}
 
 void Bank::create_table(){
     const char* sql =
         "CREATE TABLE IF NOT EXISTS ACC_INFO ("
         "ACCOUNT_NUMBER INTEGER NOT NULL UNIQUE, "
         "BALANCE REAL NOT NULL, "
-        "CUSTOMER_NAME TEXT NOT NULL, "
+        "CUSTOMER_NAME TEXT NOT NULL UNIQUE, "
         "ACCOUNT_TYPE TEXT NOT NULL"
         ");";
 
@@ -39,7 +40,6 @@ void Bank::create_acc_db(int acc_num, double s_bal, string cust_name, string acc
     if (rc != SQLITE_OK) {
         cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << endl;
         sqlite3_close(db);
-        //return false;
     }
 
     sqlite3_bind_int(stmt, 1, acc_num);
@@ -49,19 +49,45 @@ void Bank::create_acc_db(int acc_num, double s_bal, string cust_name, string acc
     rc = sqlite3_step(stmt);
 
     sqlite3_finalize(stmt);
-    /*
-    if (rc == SQLITE_DONE) {
-        cout << "REGISTRATION SUCCESSFUL\n";
-        return true;
+}
+
+
+void Bank::display_acc_info(string cust_name){
+    sqlite3_stmt* stmt = nullptr;
+    int rc;
+
+    const char* sql =
+        "SELECT ACCOUNT_NUMBER, BALANCE, ACCOUNT_TYPE "
+        "FROM ACC_INFO WHERE CUSTOMER_NAME = ?;";
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << std::endl;
     }
 
-    if (rc == SQLITE_CONSTRAINT) {
-        cout << "USERNAME ALREADY EXISTS\n";
-    } else {
-        cerr << "SQLite error: " << sqlite3_errmsg(db) << "\n";
+    rc = sqlite3_bind_text(stmt, 1, cust_name.c_str(), -1, SQLITE_TRANSIENT);
+    if (rc != SQLITE_OK) {
+        std::cerr << "Bind failed: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
     }
-    */
-   //return false;
+
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        int acc_num = sqlite3_column_int(stmt, 0);
+        double balance = sqlite3_column_double(stmt, 1);
+
+        const unsigned char* text = sqlite3_column_text(stmt, 2);
+        std::string acc_type = text ? reinterpret_cast<const char*>(text) : "";
+
+        std::cout << "ACCOUNT NUMBER = " << acc_num << std::endl;
+        std::cout << "BALANCE = " << balance << std::endl;
+        std::cout << "ACCOUNT TYPE = " << acc_type << std::endl;
+    }
+
+    if (rc != SQLITE_DONE) {
+        std::cerr << "Execution failed: " << sqlite3_errmsg(db) << std::endl;
+    }
+
+    sqlite3_finalize(stmt);
 }
 
 Account Bank::create_account(const string acc_type, const string cust_name){
@@ -75,10 +101,12 @@ Account Bank::create_account(const string acc_type, const string cust_name){
 
     if (acc_type == "savings") {
         create_acc_db(account_number, starting_balance, cust_name, acc_type);
+        list_of_accs.push_back(cust_name);
         return Account(account_number, starting_balance, cust_name, acc_type);
     }
     else {
         create_acc_db(account_number, starting_balance, cust_name, acc_type);
+        list_of_accs.push_back(cust_name);
         return Account(account_number, starting_balance, cust_name, acc_type);
     }
 }
