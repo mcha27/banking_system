@@ -80,10 +80,10 @@ bool Database::login_user(string username, string password){
     int rc = sqlite3_step(stmt);
 
     if (rc == SQLITE_ROW) {
-        cout << "Login successful\n";
+        cout << "LOGIN SUCCESSFUL" << endl;
         return true;
     } else {
-        cout << "Invalid username or password\n";
+        cout << "INVALID USERNAME OR PASSWORD" << endl;
         return false;
     }
 

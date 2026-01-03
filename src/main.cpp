@@ -10,9 +10,10 @@ using namespace std;
 
 bool auth(){
     sqlite3* db;
-
+    cout << "===============================" << endl;
     cout << "1. Login" << endl;
     cout << "2. Register" << endl;
+    cout << "===============================" << endl;
     int option;
     cin >> option;
 
@@ -79,9 +80,12 @@ int main(){
             }
 
             int option;
+            cout << "===============================" << endl;
             cout << "1. View Account Information" << endl;
             cout << "2. Create an Account" << endl;
             cout << "3. Deposit funds into an Account" << endl;
+            cout << "4. Withdraw funds from an Account" << endl;
+            cout << "===============================" << endl;
             cin >> option;
 
             Bank* bank = new Bank(db);
@@ -105,11 +109,25 @@ int main(){
                 Account new_acc = bank->create_account(acc_type, cust_name);
                 cout << "USER HAS BEEN SUCCESSFULLY CREATED." << endl;
             }
-            else if (option == 3){ //deposit money into an account
+            else if (option == 3){ 
                 string cust_name;
-
-                cout << "Enter name for the account: ";
+                double amount;
+                cout << "Enter name for the account: " << endl;
                 cin >> cust_name;
+                cout << "How much would you like to deposit?" << endl;
+                cin >> amount;
+                bank->deposit(amount, cust_name);
+                cout << "Deposit is successful." << endl;
+            }
+            else if (option == 4){
+                string cust_name;
+                double amount;
+                cout << "Enter name for the account: " << endl;
+                cin >> cust_name;
+                cout << "How much would you like to deposit?" << endl;
+                cin >> amount;
+                bank->withdraw(amount, cust_name);
+                cout << "Withdraw is successful." << endl;
             }
         }
 

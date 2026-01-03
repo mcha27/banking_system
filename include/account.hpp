@@ -13,11 +13,6 @@ private:
 
 public:
     Account(int account_number, double balance, const std::string& customer_name, const std::string& account_type);
-
-    void check_balance() const;
-    void deposit(double amount);
-    void withdraw(double amount);
-    void get_account_info() const;
 };
 
 #endif
