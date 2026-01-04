@@ -57,15 +57,11 @@ pair<bool, string> auth(){
             cin >> username;
             cout << "Create a password: ";
             cin >> password;
-
             User* user = new User(username, password);
             RUN = !datab->register_user(user);          
         }
-
     }
-
     sqlite3_close(db);
-
     return {false, ""};
 }
 
@@ -88,6 +84,8 @@ int main(){
             cout << "2. Create an Account" << endl;
             cout << "3. Deposit funds into an Account" << endl;
             cout << "4. Withdraw funds from an Account" << endl;
+            cout << "5. Transfer funds between two Accounts" << endl;
+            cout << "6. Delete an Account" << endl;
             cout << "===================================" << endl;
             cin >> option;
 
@@ -104,10 +102,8 @@ int main(){
             else if (option == 2){
                 string account_name;
                 string account_type;
-
                 cout << "Enter name for the account: ";
                 cin >> account_name;
-
                 cout << "Savings or Checking? ";
                 cin >> account_type;
                 this_thread::sleep_for(chrono::seconds(2));
@@ -137,6 +133,28 @@ int main(){
                 this_thread::sleep_for(chrono::seconds(2));
                 bank->withdraw(amount, account_name);
                 cout << "Withdraw is successful." << endl;
+                this_thread::sleep_for(chrono::seconds(2));
+            }
+            else if (option == 5){
+                string from_acc;
+                string to_acc;
+                double amount;
+                cout << "Enter account name to transfer from: " << endl;
+                cin >> from_acc;
+                cout << "Enter account name to transfer to: " << endl;
+                cin >> to_acc;
+                cout << "How much would you like to transfer?" << endl;
+                cin >> amount;
+                this_thread::sleep_for(chrono::seconds(2));
+                bank->transfer_funds(from_acc, to_acc, amount);
+                this_thread::sleep_for(chrono::seconds(2));
+            }
+            else if (option == 6){
+                string account_name;
+                cout << "Enter name for the account: " << endl;
+                cin >> account_name;
+                this_thread::sleep_for(chrono::seconds(2));
+                bank->delete_account(account_name);
                 this_thread::sleep_for(chrono::seconds(2));
             }
         }

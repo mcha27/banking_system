@@ -18,7 +18,7 @@ void Bank::create_table(){
         "CREATE TABLE IF NOT EXISTS ACC_INFO ("
         "ACCOUNT_NUMBER INTEGER NOT NULL UNIQUE, "
         "BALANCE REAL NOT NULL, "
-        "CUSTOMER_NAME TEXT NOT NULL UNIQUE, "
+        "ACCOUNT_NAME TEXT NOT NULL UNIQUE, "
         "ACCOUNT_TYPE TEXT NOT NULL, "
         "CREATED_BY TEXT NOT NULL"
         ");";
@@ -35,7 +35,7 @@ void Bank::create_table(){
 void Bank::create_acc_db(int acc_num, double s_bal, const string& acc_name, const string& acc_type, const string& created_by){
     sqlite3_stmt* stmt;
 
-    const char* insert = "INSERT INTO ACC_INFO (ACCOUNT_NUMBER, BALANCE, CUSTOMER_NAME, ACCOUNT_TYPE, CREATED_BY) VALUES (?, ?, ?, ?, ?);";
+    const char* insert = "INSERT INTO ACC_INFO (ACCOUNT_NUMBER, BALANCE, ACCOUNT_NAME, ACCOUNT_TYPE, CREATED_BY) VALUES (?, ?, ?, ?, ?);";
 
     int rc = sqlite3_prepare_v2(db, insert, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -59,26 +59,28 @@ void Bank::display_acc_info(const string& acc_name, const string& created_by){
 
     const char* sql =
         "SELECT ACCOUNT_NUMBER, BALANCE, ACCOUNT_TYPE "
-        "FROM ACC_INFO WHERE CUSTOMER_NAME = ? AND CREATED_BY = ?;";
+        "FROM ACC_INFO WHERE ACCOUNT_NAME = ? AND CREATED_BY = ?;";
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         cerr << "Prepare failed: " << sqlite3_errmsg(db) << endl;
+        return;
     }
 
-    rc = sqlite3_bind_text(stmt, 1, acc_name.c_str(), -1, SQLITE_TRANSIENT);
-    rc = sqlite3_bind_text(stmt, 2, created_by.c_str(), -1, SQLITE_TRANSIENT);
-    if (rc != SQLITE_OK) {
-        cerr << "Bind failed: " << sqlite3_errmsg(db) << endl;
-        sqlite3_finalize(stmt);
-    }
+    sqlite3_bind_text(stmt, 1, acc_name.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, created_by.c_str(), -1, SQLITE_TRANSIENT);
+
+    bool found = false;
 
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        found = true;
+
         int acc_num = sqlite3_column_int(stmt, 0);
         double balance = sqlite3_column_double(stmt, 1);
 
         const unsigned char* text = sqlite3_column_text(stmt, 2);
         string acc_type = text ? reinterpret_cast<const char*>(text) : "";
+
         cout << "====================================" << endl;
         cout << "ACCOUNT NUMBER:  " << acc_num << endl;
         cout << "BALANCE: " << balance << endl;
@@ -87,9 +89,12 @@ void Bank::display_acc_info(const string& acc_name, const string& created_by){
         cout << "====================================" << endl;
     }
 
-    if (rc != SQLITE_DONE) {
+    if (!found) {
+        cout << "No account found for customer: " << acc_name << endl;
+    } else if (rc != SQLITE_DONE) {
         cerr << "Execution failed: " << sqlite3_errmsg(db) << endl;
     }
+
     sqlite3_finalize(stmt);
 }
 
@@ -118,7 +123,7 @@ void Bank::deposit(double amount, const string& acc_name) {
     const char* sql =
         "UPDATE ACC_INFO "
         "SET BALANCE = BALANCE + ? "
-        "WHERE CUSTOMER_NAME = ?;";
+        "WHERE ACCOUNT_NAME = ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
@@ -145,7 +150,7 @@ void Bank::withdraw(double amount, const string& acc_name) {
     const char* sql =
         "UPDATE ACC_INFO "
         "SET BALANCE = BALANCE - ? "
-        "WHERE CUSTOMER_NAME = ?;";
+        "WHERE ACCOUNT_NAME = ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
@@ -166,4 +171,98 @@ void Bank::withdraw(double amount, const string& acc_name) {
     sqlite3_finalize(stmt);
 }
 
+void Bank::delete_account(const string& acc_name) {
+    sqlite3_stmt* stmt = nullptr;
 
+    const char* sql =
+        "DELETE FROM ACC_INFO WHERE ACCOUNT_NAME = ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        cerr << "Prepare failed: " << sqlite3_errmsg(db) << endl;
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, acc_name.c_str(), -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        cerr << "Delete failed: " << sqlite3_errmsg(db) << endl;
+    } else {
+        cout << "Account deleted successfully" << endl;
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+
+void Bank::transfer_funds(const string& from_acc, const string& to_acc, double amount) {
+    if (amount <= 0) {
+        cerr << "Invalid transfer amount." << endl;
+    }
+
+    sqlite3_stmt* stmt = nullptr;
+    int rc;
+
+    rc = sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        cerr << "Failed to begin transaction." << endl;
+    }
+
+    double from_balance = 0.0;
+    const char* check_sql = "SELECT BALANCE FROM ACC_INFO WHERE ACCOUNT_NAME = ?;";
+
+    rc = sqlite3_prepare_v2(db, check_sql, -1, &stmt, nullptr);
+    sqlite3_bind_text(stmt, 1, from_acc.c_str(), -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        cerr << "Source account not found." << endl;
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+    }
+
+    from_balance = sqlite3_column_double(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    if (from_balance < amount) {
+        cerr << "Insufficient funds." << endl;
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+    }
+
+    const char* debit_sql =
+        "UPDATE ACC_INFO SET BALANCE = BALANCE - ? WHERE ACCOUNT_NAME = ?;";
+
+    rc = sqlite3_prepare_v2(db, debit_sql, -1, &stmt, nullptr);
+    sqlite3_bind_double(stmt, 1, amount);
+    sqlite3_bind_text(stmt, 2, from_acc.c_str(), -1, SQLITE_TRANSIENT);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        cerr << "Debit failed." << endl;
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+    }
+    sqlite3_finalize(stmt);
+
+    const char* credit_sql =
+        "UPDATE ACC_INFO SET BALANCE = BALANCE + ? WHERE ACCOUNT_NAME = ?;";
+
+    rc = sqlite3_prepare_v2(db, credit_sql, -1, &stmt, nullptr);
+    sqlite3_bind_double(stmt, 1, amount);
+    sqlite3_bind_text(stmt, 2, to_acc.c_str(), -1, SQLITE_TRANSIENT);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        cerr << "Credit failed." << endl;
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+    }
+    sqlite3_finalize(stmt);
+
+    rc = sqlite3_exec(db, "COMMIT;", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK) {
+        cerr << "Commit failed." << endl;
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+    }
+
+    cout << "Transfer successful." << endl;
+}

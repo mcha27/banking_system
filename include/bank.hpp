@@ -18,6 +18,8 @@ class Bank {
         void display_acc_info(const std::string& acc_name, const std::string& created_by);
         void deposit(double amount, const std::string& acc_name);
         void withdraw(double amount, const std::string& acc_name);
+        void delete_account(const std::string& acc_name);
+        void transfer_funds(const std::string& from_acc, const std::string& to_acc, double amount);
 };
 
 #endif

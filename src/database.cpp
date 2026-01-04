@@ -9,6 +9,7 @@
 #include <sqlite3.h>
 #include <random>
 #include <chrono>
+#include <thread>
 #include "../include/user.hpp"
 #include "../include/database.hpp"
 using namespace std;
@@ -80,6 +81,7 @@ bool Database::login_user(string username, string password){
     int rc = sqlite3_step(stmt);
 
     if (rc == SQLITE_ROW) {
+        this_thread::sleep_for(chrono::seconds(2));
         cout << "LOGIN SUCCESSFUL" << endl;
         return true;
     } else {
