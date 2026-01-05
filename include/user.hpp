@@ -2,6 +2,7 @@
 #define USER
 
 #include "../include/account.hpp"
+
 #include <string>
 
 class User {

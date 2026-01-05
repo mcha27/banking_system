@@ -8,7 +8,7 @@ BIN_DIR = bin
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 TARGET = $(BIN_DIR)/main
-DB = data/auth.db data/bank.db
+DB = data/auth.db data/bank.db data/transactions.db
 
 all: $(TARGET)
 

@@ -2,6 +2,7 @@
 #include "../include/user.hpp"
 #include "../include/database.hpp"
 #include "../include/bank.hpp"
+#include "../include/transactions.hpp"
 
 #include <iostream>
 #include <sqlite3.h>
@@ -86,11 +87,22 @@ int main(){
             cout << "4. Withdraw funds from an Account" << endl;
             cout << "5. Transfer funds between two Accounts" << endl;
             cout << "6. Delete an Account" << endl;
+            cout << "0. Exit" << endl;
             cout << "===================================" << endl;
             cin >> option;
 
             Bank* bank = new Bank(db);
             bank->create_table();
+
+            sqlite3* db2;
+            int rc2 = sqlite3_open("data/transactions.db", &db2);
+            if (rc2 != SQLITE_OK) {
+                cerr << "Cannot open database: " << sqlite3_errmsg(db2) << endl;
+                sqlite3_close(db2);
+            }
+            Transactions* t = new Transactions(db2);
+            t->create_table();
+
             if (option == 1){
                 string account_name;
                 cout << "Enter account name: ";
@@ -120,7 +132,13 @@ int main(){
                 cin >> amount;
                 this_thread::sleep_for(chrono::seconds(2));
                 bank->deposit(amount, account_name);
-                cout << "Deposit is successful." << endl;
+
+                time_t timestamp;
+                time(&timestamp);
+                string date_time = ctime(&timestamp);
+                t->record_transaction(date_time, "deposit", username, account_name, account_name, amount);
+
+                cout << "DEPOSIT IS SUCCESSFUL." << endl;
                 this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 4){
@@ -132,7 +150,13 @@ int main(){
                 cin >> amount;
                 this_thread::sleep_for(chrono::seconds(2));
                 bank->withdraw(amount, account_name);
-                cout << "Withdraw is successful." << endl;
+
+                time_t timestamp;
+                time(&timestamp);
+                string date_time = ctime(&timestamp);
+                t->record_transaction(date_time, "withdrawal", username, account_name, account_name, amount);
+
+                cout << "WITHDRAWAL IS SUCCESSFUl." << endl;
                 this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 5){
@@ -147,6 +171,12 @@ int main(){
                 cin >> amount;
                 this_thread::sleep_for(chrono::seconds(2));
                 bank->transfer_funds(from_acc, to_acc, amount);
+
+                time_t timestamp;
+                time(&timestamp);
+                string date_time = ctime(&timestamp);
+                t->record_transaction(date_time, "transfer", username, from_acc, to_acc, amount);
+
                 this_thread::sleep_for(chrono::seconds(2));
             }
             else if (option == 6){
@@ -156,6 +186,9 @@ int main(){
                 this_thread::sleep_for(chrono::seconds(2));
                 bank->delete_account(account_name);
                 this_thread::sleep_for(chrono::seconds(2));
+            }
+            else if (option == 0){
+                RUN = false;
             }
         }
     }

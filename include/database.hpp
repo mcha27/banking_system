@@ -1,9 +1,9 @@
 #ifndef DATABASE
 #define DATABASE
+
 #include <string>
 #include <sqlite3.h>
 #include "../include/user.hpp"
-
 
 class Database {
     private:

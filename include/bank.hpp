@@ -3,8 +3,6 @@
 
 #include "../include/account.hpp"
 
-#include <vector>
-
 class Bank {
     private:
         sqlite3* db;
